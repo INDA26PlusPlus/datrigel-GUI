@@ -15,7 +15,7 @@ struct Model {
     chesslogic: tjack::Game,
 
     selected_square: Option<[i32; 2]>,
-
+    checkmate: bool,
 
     // All file paths for the piece textures.
     black_pawn: Handle<Image>,
@@ -43,6 +43,7 @@ fn model(_app: &App) -> Model {
         chesslogic: tjack::Game::new(),
         // texture: _app.asset_server().load("Pieces/Chess_bdt60.png")
         selected_square: None,
+        checkmate: false,
 
         black_pawn: _app.asset_server().load("Pieces/Chess_pdt60.png"),
         white_pawn: _app.asset_server().load("Pieces/Chess_plt60.png"),
@@ -75,8 +76,6 @@ fn update(_app: &App, _model: &mut Model) {
                 
                 if let Some(position) = position_from_xy(_model, *square_x, *square_y) {
 
-                
-
                 let possible_plys: Vec<Ply> = match _model.chesslogic.find_plies(position) {
                     Some(possible_plys) => possible_plys,
                     None => {
@@ -86,6 +85,7 @@ fn update(_app: &App, _model: &mut Model) {
                         return;
                     }
                 };
+                // Perform movement
                 for ply in possible_plys {
                     let new_position = match ply {
                         Ply::Quiet { old_position, new_position} => new_position,
@@ -95,13 +95,17 @@ fn update(_app: &App, _model: &mut Model) {
                     if let Some(parsed_clicked_square) = position_from_xy(_model, clicked_square[0], clicked_square[1]) {
                         if parsed_clicked_square == new_position {
                             _model.chesslogic.perform_ply(ply);
+                            if _model.chesslogic.is_check() == true {
+                                if _model.chesslogic.is_checkmate() == true {
+                                    _model.checkmate = true;
+                                }
+                            }
                         }
                     }
                 };
-                // Perform movement
-                //_model.chesslogic.perform_ply();
             }
                 _model.selected_square = None;
+                return;
             };
          // If no square has been selected, select that square.
     } 
@@ -114,6 +118,12 @@ fn view(app: &App, _model: &Model, _window: Entity) {
     let draw = app.draw();
     // set background color, BLANCHED_ALMOND
     draw.background().color(GREY);
+
+    if _model.checkmate == true {
+        draw
+        .text("checkmate")
+        .color(RED);
+    }
 
     // Everything drawn to the frame.
 
@@ -198,7 +208,7 @@ fn draw_pieces(draw: &Draw, _model: &Model, board_size: f32) {
             .rect()
             .texture(texture)
             .w_h(board_size, board_size)
-            .x_y((i as f32 * board_size) - board_size * 3.5 , (a as f32 * board_size) - board_size * 3.5);
+            .x_y((i as f32 * board_size) - board_size * 3.5 , board_size * 3.5 - (a as f32 * board_size));
             }
         }
     }
