@@ -153,12 +153,18 @@ fn view(app: &App, _model: &Model, _window: Entity) {
         .rect()
         .w(board_size*6.5)
         .h(board_size*4.5)
-        .color(DARK_RED);
+        .color(GREY);
+
+
+        let color = match _model.chesslogic.whose_turn() {
+            tjack::Color::BLACK => "BLACK",
+            tjack::Color::WHITE => "WHITE",
+        };
 
         draw
-        .text("Checkmate")
-        .color(RED)
-        .font_size(70)
+        .text(&(color.to_owned() + " in Checkmate"))
+        .color(BLANCHED_ALMOND)
+        .font_size(45)
         .font("Sans");
         return;
     }
@@ -208,7 +214,7 @@ fn klick_square(app: &App, board_size: f32) -> Option<[i32; 2]> {
                     ((mouse_position[1] + board_size * 4.0)/board_size) as i32,
                     ])
         } else {
-            panic!("Pressed out of bounds")
+            panic!("ERROR: Pressed out of bounds")
         }
     } 
     None
