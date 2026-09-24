@@ -1,5 +1,5 @@
 use tjack::{Color::*, Game, PieceRepresentation, PieceType::*, Ply, Position};
-use nannou::prelude::{bevy_ecs::error::panic, bevy_render::mesh::Polyline2dMeshBuilder, *};
+use nannou::{lyon::geom::euclid::rect, prelude::{BLACK, bevy_ecs::error::panic, bevy_render::mesh::Polyline2dMeshBuilder, *}};
 
 // Credit to https://commons.wikimedia.org/wiki/Category:PNG_chess_pieces/Standard_transparent for chess piece assents.
 
@@ -16,6 +16,7 @@ struct Model {
 
     selected_square: Option<[i32; 2]>,
     checkmate: bool,
+    possible_plys: Option<Vec<Ply>>,
 
     // All file paths for the piece textures.
     black_pawn: Handle<Image>,
@@ -44,6 +45,7 @@ fn model(_app: &App) -> Model {
         // texture: _app.asset_server().load("Pieces/Chess_bdt60.png")
         selected_square: None,
         checkmate: false,
+        possible_plys: None,
 
         black_pawn: _app.asset_server().load("Pieces/Chess_pdt60.png"),
         white_pawn: _app.asset_server().load("Pieces/Chess_plt60.png"),
@@ -67,13 +69,12 @@ fn model(_app: &App) -> Model {
 
 
 fn update(_app: &App, _model: &mut Model) {
-    if let Some(clicked_square) = klick_square(_app, 70.0) {
+    if let Some(clicked_square) = klick_square(_app, 70.0) && _model.checkmate != true {
         // Highlighting and movement
         // Selects square 
         if _model.selected_square != None {
-            // If no square has been selected
+            // If a square has been selected
             if let Some([square_x, square_y]) = _model.selected_square.as_ref() {
-                
                 if let Some(position) = position_from_xy(_model, *square_x, *square_y) {
 
                 let possible_plys: Vec<Ply> = match _model.chesslogic.find_plies(position) {
@@ -85,18 +86,22 @@ fn update(_app: &App, _model: &mut Model) {
                         return;
                     }
                 };
+                // Saves possible plys.
+                _model.possible_plys = Some(possible_plys.clone());
                 // Perform movement
                 for ply in possible_plys {
-                    let new_position = match ply {
+                    let new_pos = match ply {
                         Ply::Quiet { old_position, new_position} => new_position,
                         Ply::Capture { old_position, new_position, captured_piece } => new_position,
                     };
                     // Converts clicked square to position
                     if let Some(parsed_clicked_square) = position_from_xy(_model, clicked_square[0], clicked_square[1]) {
-                        if parsed_clicked_square == new_position {
+                        if parsed_clicked_square == new_pos {
                             _model.chesslogic.perform_ply(ply);
                             if _model.chesslogic.is_check() == true {
+                                println!("King in check.");
                                 if _model.chesslogic.is_checkmate() == true {
+                                    println!("King in checkmate");
                                     _model.checkmate = true;
                                 }
                             }
@@ -104,7 +109,9 @@ fn update(_app: &App, _model: &mut Model) {
                     }
                 };
             }
+            // Cleanup
                 _model.selected_square = None;
+                _model.possible_plys = None;
                 return;
             };
          // If no square has been selected, select that square.
@@ -119,12 +126,6 @@ fn view(app: &App, _model: &Model, _window: Entity) {
     // set background color, BLANCHED_ALMOND
     draw.background().color(GREY);
 
-    if _model.checkmate == true {
-        draw
-        .text("checkmate")
-        .color(RED);
-    }
-
     // Everything drawn to the frame.
 
     // Drawing the board.
@@ -134,16 +135,33 @@ fn view(app: &App, _model: &Model, _window: Entity) {
 
     // Draw selected square
     if let Some(clicked_square) = _model.selected_square {
+        // Draw selected_square
         draw
             .rect()
             .w(board_size)
             .h(board_size)
-            .color(RED)
+            .color(DARK_RED)
             .x_y((clicked_square[0] as f32 * board_size) - board_size * 3.5 , (clicked_square[1] as f32 * board_size) - board_size * 3.5);
     }
 
     // Drawing pieces on the board.
     draw_pieces(&draw, _model, board_size);
+
+    // draws checkmate to screen if game is in checkmate.
+    if _model.checkmate == true {
+        draw
+        .rect()
+        .w(board_size*6.5)
+        .h(board_size*4.5)
+        .color(DARK_RED);
+
+        draw
+        .text("Checkmate")
+        .color(RED)
+        .font_size(70)
+        .font("Sans");
+        return;
+    }
 
 }
 
